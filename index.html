@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Learning to Rank in Information Retrieval — RankNet</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: #fff;
+            color: #1E293B;
+            overflow: hidden;
+            font-family: Inter, "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif
+        }
+
+        #viewport {
+            position: absolute;
+            inset: 0 0 44px 0;
+            background: #fff
+        }
+
+        #stage {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 1280px;
+            height: 720px;
+            background: #fff;
+            transform-origin: center center;
+            outline: 1px solid #E2E8F0
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            padding: 40px 64px 50px
+        }
+
+        .slide.active {
+            display: flex
+        }
+
+        .kicker {
+            font-size: 14px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: #1D4ED8;
+            font-weight: 700;
+            margin-bottom: 6px
+        }
+
+        h1 {
+            font-size: 54px;
+            line-height: 1.1;
+            color: #0F172A;
+            font-weight: 800
+        }
+
+        h2 {
+            font-size: 36px;
+            line-height: 1.15;
+            color: #0F172A;
+            font-weight: 750
+        }
+
+        .rule {
+            height: 3px;
+            width: 56px;
+            background: #1D4ED8;
+            border-radius: 2px;
+            margin: 12px 0 20px
+        }
+
+        .foot {
+            position: absolute;
+            left: 64px;
+            right: 64px;
+            bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #64748B
+        }
+
+        p,
+        li {
+            font-size: 20px;
+            line-height: 1.4
+        }
+
+        b {
+            color: #0F172A
+        }
+
+        ul {
+            list-style: none
+        }
+
+        li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 8px
+        }
+
+        li::before {
+            content: "";
+            position: absolute;
+            left: 2px;
+            top: .62em;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #1D4ED8
+        }
+
+        .card {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 14px 18px
+        }
+
+        .card.accent {
+            border-left: 4px solid #1D4ED8
+        }
+
+        .card h3 {
+            font-size: 18px;
+            color: #0F172A;
+            margin-bottom: 6px
+        }
+
+        .card p,
+        .card li {
+            font-size: 17px
+        }
+
+        .row {
+            display: flex;
+            gap: 16px
+        }
+
+        .col {
+            display: flex;
+            flex-direction: column;
+            gap: 14px
+        }
+
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px
+        }
+
+        .grid3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px
+        }
+
+        .muted {
+            color: #64748B
+        }
+
+        .blue {
+            color: #1D4ED8
+        }
+
+        .bad {
+            color: #B91C1C
+        }
+
+        .good {
+            color: #15803D
+        }
+
+        .small {
+            font-size: 14px !important
+        }
+
+        .chip {
+            display: inline-block;
+            font-size: 14px;
+            padding: 3px 10px;
+            border: 1px solid #E2E8F0;
+            border-radius: 999px;
+            background: #fff;
+            color: #1E293B;
+            margin: 2px 4px 2px 0
+        }
+
+        .num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #1D4ED8;
+            color: #fff;
+            font-weight: 700;
+            font-size: 15px;
+            margin-right: 10px;
+            flex: none
+        }
+
+        .node {
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 16px;
+            text-align: center
+        }
+
+        .node.fill {
+            background: #1D4ED8;
+            border-color: #1D4ED8;
+            color: #fff
+        }
+
+        .node.soft {
+            background: #F8FAFC
+        }
+
+        .arr {
+            color: #1D4ED8;
+            font-size: 24px;
+            text-align: center
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 18px
+        }
+
+        th,
+        td {
+            border: 1px solid #E2E8F0;
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
+            line-height: 1.35
+        }
+
+        .big .node {
+            font-size: 18px;
+            padding: 12px 14px
+        }
+
+        .big .node.tight {
+            padding: 2px 10px;
+            font-size: 13px
+        }
+
+        th {
+            background: #F8FAFC;
+            color: #0F172A
+        }
+
+        td.lab {
+            background: #F8FAFC;
+            font-weight: 600;
+            color: #0F172A;
+            width: 17%
+        }
+
+        .katex {
+            font-size: 1.06em
+        }
+
+        .katex-display {
+            margin: 6px 0
+        }
+
+        pre {
+            margin: 0;
+            font-family: "JetBrains Mono", "Fira Code", Consolas, Menlo, monospace;
+            font-size: 11.5px;
+            line-height: 1.4
+        }
+
+        pre code.hljs {
+            background: transparent;
+            padding: 0
+        }
+
+        .code {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 12px 14px;
+            overflow: hidden
+        }
+
+        .rank {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 15px;
+            margin-bottom: 6px
+        }
+
+        .rank .n {
+            font-weight: 700;
+            color: #1D4ED8;
+            width: 16px
+        }
+
+        .rank .r {
+            margin-left: auto;
+            font-size: 12px;
+            color: #64748B;
+            white-space: nowrap
+        }
+
+        .rank.spam {
+            border-color: #FCA5A5;
+            background: #FEF2F2
+        }
+
+        #bar {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 44px;
+            background: #fff;
+            border-top: 1px solid #E2E8F0;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 0 18px;
+            font-size: 14px;
+            color: #64748B
+        }
+
+        #bar button {
+            border: 1px solid #E2E8F0;
+            background: #F8FAFC;
+            color: #0F172A;
+            border-radius: 6px;
+            width: 34px;
+            height: 28px;
+            font-size: 16px;
+            cursor: pointer
+        }
+
+        #bar button:hover {
+            border-color: #1D4ED8;
+            color: #1D4ED8
+        }
+
+        #track {
+            flex: 1;
+            height: 4px;
+            background: #E2E8F0;
+            border-radius: 2px;
+            overflow: hidden
+        }
+
+        #fill {
+            height: 100%;
+            width: 0;
+            background: #1D4ED8;
+            transition: width .2s
+        }
+
+        #count {
+            min-width: 64px;
+            text-align: center;
+            color: #0F172A;
+            font-weight: 600
+        }
+    </style>
+</head>
+
+<body>
+    <div id="viewport">
+        <div id="stage">
+
+            <!-- 1 TITLE -->
+            <section class="slide" style="justify-content:center">
+                <div style="display:grid;grid-template-columns:1fr 360px;gap:48px;align-items:center">
+                    <div>
+                        <div class="kicker">Topic 7 · Information Web Retrieval and Analytics</div>
+                        <h1>Learning to Rank in Information Retrieval</h1>
+                        <div class="rule"></div>
+                        <p class="blue" style="font-size:26px;font-weight:600;margin-bottom:30px">Pairwise Ranking with
+                            RankNet (Burges et al., ICML 2005)</p>
+                        <div class="card accent"
+                            style="display:grid;grid-template-columns:110px 1fr;row-gap:8px;font-size:17px">
+                            <b>Course</b><span>Information Web Retrieval and Analytics</span>
+                            <b>Instructor</b><span>Dorn Dawin</span>
+                            <b>Team</b><span>Chhouk Phalthunin, Lot Soklang, Sroeun Bunnarith</span>
+                            <b>Institute</b><span>Institute of Technology of Cambodia — Department of Applied
+                                Mathematics and Statistics</span>
+                        </div>
+                    </div>
+                    <div class="card" style="padding:26px 20px;text-align:center">
+                        <p class="muted small" style="margin-bottom:6px;letter-spacing:.1em;text-transform:uppercase">
+                            The core idea</p>
+                        $$P_{ij}=\frac{e^{\,o_i-o_j}}{1+e^{\,o_i-o_j}}$$
+                        <p class="muted" style="font-size:15px;margin-top:8px">Probability that document $i$ should rank
+                            above document $j$</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2 INTRO -->
+            <section class="slide">
+                <div class="kicker">Introduction</div>
+                <h2>What is Learning to Rank (LTR)?</h2>
+                <div class="rule"></div>
+                <p style="margin-bottom:18px">A <b>supervised</b> paradigm that learns to <b>sort items by relevance</b>
+                    — not to predict a number (regression) or a label (classification).</p>
+                <div class="card"
+                    style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px;margin-bottom:18px">
+                    <div class="col" style="gap:6px;flex:none">
+                        <span class="node">Text match</span><span class="node">Link authority</span><span
+                            class="node">Freshness</span><span class="node">User clicks</span>
+                    </div>
+                    <div class="arr">→</div>
+                    <div class="node fill" style="font-size:20px;padding:20px 26px">learned scoring function<br>$f(x)$
+                    </div>
+                    <div class="arr">→</div>
+                    <div style="width:300px">
+                        <div class="rank"><span class="n">1</span>Most relevant document</div>
+                        <div class="rank"><span class="n">2</span>Next best document</div>
+                        <div class="rank" style="margin:0"><span class="n">3</span>…sorted by $f(x)$</div>
+                    </div>
+                </div>
+                <p style="margin-bottom:8px"><b>Where does training data come from?</b></p>
+                <div class="grid2">
+                    <div class="card accent">
+                        <h3>Explicit judgments</h3>
+                        <p>Human relevance labels, e.g. graded 0–4</p>
+                    </div>
+                    <div class="card accent">
+                        <h3>Implicit feedback</h3>
+                        <p>Click-through logs and dwell time</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3 BM25 -->
+            <section class="slide">
+                <div class="kicker">Background problem</div>
+                <h2>BM25 and Its Limitations</h2>
+                <div class="rule"></div>
+                <div style="display:grid;grid-template-columns:480px 1fr;gap:24px">
+                    <div class="col">
+                        <div class="card accent">
+                            <h3>BM25 (Best Matching 25)</h3>
+                            <p style="margin-bottom:6px">Unsupervised lexical scoring formula</p>
+                            <div style="font-size:15px">$$\mathrm{BM25}(q,d)=\sum_{t\in
+                                q}\mathrm{IDF}(t)\cdot\frac{f(t,d)\,(k_1+1)}{f(t,d)+k_1\!\left(1-b+b\frac{|d|}{\mathrm{avgdl}}\right)}$$
+                            </div>
+                        </div>
+                        <div class="card">
+                            <span class="chip"><b>TF</b> term frequency</span><span class="chip"><b>IDF</b> term
+                                rarity</span><span class="chip"><b>Length</b> normalization</span>
+                        </div>
+                        <p class="muted" style="font-size:16px">No training, fast and strong baseline — but it only sees
+                            words.</p>
+                    </div>
+                    <div class="grid2" style="grid-auto-rows:1fr">
+                        <div class="card">
+                            <div style="display:flex;align-items:center;margin-bottom:6px"><span
+                                    class="num">1</span><b>Exact keyword overlap</b></div>
+                            <p>Misses synonyms and context</p>
+                        </div>
+                        <div class="card">
+                            <div style="display:flex;align-items:center;margin-bottom:6px"><span
+                                    class="num">2</span><b>Ignores quality signals</b></div>
+                            <p>PageRank, domain authority, engagement</p>
+                        </div>
+                        <div class="card">
+                            <div style="display:flex;align-items:center;margin-bottom:6px"><span
+                                    class="num">3</span><b>Keyword stuffing</b></div>
+                            <p>Vulnerable to SEO spam</p>
+                        </div>
+                        <div class="card">
+                            <div style="display:flex;align-items:center;margin-bottom:6px"><span
+                                    class="num">4</span><b>Manual tuning</b></div>
+                            <p>100+ feature weights cannot be tuned by hand</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4 THREE FAMILIES -->
+            <section class="slide">
+                <div class="kicker">Taxonomy</div>
+                <h2>The Three Families of Learning to Rank</h2>
+                <div class="rule"></div>
+                <table>
+                    <tr>
+                        <th style="width:15%"></th>
+                        <th>Pointwise</th>
+                        <th>Pairwise</th>
+                        <th>Listwise</th>
+                    </tr>
+                    <tr>
+                        <td class="lab">Picture</td>
+                        <td><svg viewBox="0 0 300 70" width="100%" height="64">
+                                <rect x="10" y="14" width="64" height="40" rx="6" fill="#F8FAFC" stroke="#1D4ED8" />
+                                <text x="42" y="40" text-anchor="middle" font-size="17" fill="#0F172A">xᵢ</text>
+                                <path d="M84 34h60" stroke="#1D4ED8" stroke-width="2" />
+                                <path d="M144 34l-8-5v10z" fill="#1D4ED8" />
+                                <rect x="154" y="14" width="110" height="40" rx="6" fill="#fff" stroke="#E2E8F0" /><text
+                                    x="209" y="40" text-anchor="middle" font-size="15" fill="#0F172A">score 0.8</text>
+                            </svg></td>
+                        <td><svg viewBox="0 0 300 70" width="100%" height="64">
+                                <rect x="10" y="6" width="56" height="26" rx="6" fill="#F8FAFC" stroke="#1D4ED8" /><text
+                                    x="38" y="24" text-anchor="middle" font-size="15" fill="#0F172A">xᵢ</text>
+                                <rect x="10" y="38" width="56" height="26" rx="6" fill="#F8FAFC" stroke="#1D4ED8" />
+                                <text x="38" y="56" text-anchor="middle" font-size="15" fill="#0F172A">xⱼ</text>
+                                <path d="M76 35h60" stroke="#1D4ED8" stroke-width="2" />
+                                <path d="M136 35l-8-5v10z" fill="#1D4ED8" />
+                                <rect x="146" y="14" width="124" height="40" rx="6" fill="#fff" stroke="#E2E8F0" /><text
+                                    x="208" y="40" text-anchor="middle" font-size="15" fill="#0F172A">xᵢ ▷ xⱼ ?</text>
+                            </svg></td>
+                        <td><svg viewBox="0 0 300 70" width="100%" height="64">
+                                <rect x="10" y="4" width="64" height="18" rx="4" fill="#F8FAFC" stroke="#1D4ED8" />
+                                <rect x="10" y="26" width="64" height="18" rx="4" fill="#F8FAFC" stroke="#1D4ED8" />
+                                <rect x="10" y="48" width="64" height="18" rx="4" fill="#F8FAFC" stroke="#1D4ED8" />
+                                <path d="M84 35h60" stroke="#1D4ED8" stroke-width="2" />
+                                <path d="M144 35l-8-5v10z" fill="#1D4ED8" />
+                                <rect x="154" y="14" width="124" height="40" rx="6" fill="#fff" stroke="#E2E8F0" /><text
+                                    x="216" y="40" text-anchor="middle" font-size="13" fill="#0F172A">whole list →
+                                    NDCG</text>
+                            </svg></td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Input unit</td>
+                        <td>One document $x_i$</td>
+                        <td>A pair $(x_i,x_j)$ for the same query</td>
+                        <td>The entire ranked list</td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Learns</td>
+                        <td>Exact relevance score of each document</td>
+                        <td>Which of two documents should rank higher</td>
+                        <td>The best order of the whole list</td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Typical loss</td>
+                        <td>MSE / ordinal regression</td>
+                        <td>Binary classification on pairs</td>
+                        <td>Smoothed IR-metric objective (e.g. NDCG)</td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Examples</td>
+                        <td>Linear regression, PRank</td>
+                        <td><b class="blue">RankNet</b>, RankSVM</td>
+                        <td>ListNet, LambdaMART</td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Trade-off</td>
+                        <td>Fast, but ignores relative order within a query</td>
+                        <td>Models relative order; many pairs</td>
+                        <td>Optimizes the metric directly; more complex</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- 5 INTRODUCING RANKNET -->
+            <section class="slide">
+                <div class="kicker">Introducing RankNet</div>
+                <h2>RankNet — Microsoft Research, ICML 2005</h2>
+                <div class="rule"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+                    <div class="col">
+                        <ul>
+                            <li>Proposed by <b>Chris Burges et al.</b> in <i>“Learning to Rank using Gradient
+                                    Descent”</i></li>
+                            <li>Trained and tested on data from a <b>commercial web search engine</b> at Microsoft</li>
+                            <li>A neural network trained on <b>document pairs</b> with gradient descent</li>
+                        </ul>
+                        <div class="card accent" style="margin-top:8px">
+                            <h3>Core intuition</h3>
+                            <p>Users do not care about absolute scores — only that a <b>better document appears above a
+                                    worse one</b>.</p>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <p class="muted small" style="letter-spacing:.1em;text-transform:uppercase">Reported in the
+                            paper</p>
+                        <div class="grid2">
+                            <div class="card" style="text-align:center">
+                                <div style="font-size:34px;font-weight:800;color:#1D4ED8">17,004</div>
+                                <p class="muted small">queries, up to 1,000 documents each</p>
+                            </div>
+                            <div class="card" style="text-align:center">
+                                <div style="font-size:34px;font-weight:800;color:#1D4ED8">569</div>
+                                <p class="muted small">features per query–document pair</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <p class="small muted" style="margin-bottom:6px">Mean NDCG@15 on the test set</p>
+                            <table style="font-size:16px">
+                                <tr>
+                                    <th>Model</th>
+                                    <th>NDCG</th>
+                                </tr>
+                                <tr>
+                                    <td>Linear PRank</td>
+                                    <td>0.412</td>
+                                </tr>
+                                <tr>
+                                    <td>RankProp</td>
+                                    <td>0.460</td>
+                                </tr>
+                                <tr>
+                                    <td><b>RankNet, 2-layer net</b></td>
+                                    <td><b class="blue">0.488</b></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6 METHOD 1 -->
+            <section class="slide">
+                <div class="kicker">RankNet methodology · 1 of 4</div>
+                <h2>Inputs, Architecture and Outputs</h2>
+                <div class="rule"></div>
+                <div class="grid3" style="margin-bottom:18px">
+                    <div class="card accent">
+                        <h3>Inputs</h3>
+                        <p>Query $q$; each document is a vector $\mathbf{x}_i\in\mathbb{R}^d$</p>
+                        <div style="margin-top:6px"><span class="chip">BM25 / TF-IDF</span><span
+                                class="chip">authority</span><span class="chip">clicks</span></div>
+                    </div>
+                    <div class="card accent">
+                        <h3>Architecture</h3>
+                        <p><b>Train:</b> a pair $(\mathbf{x}_i,\mathbf{x}_j)$ through two identical nets
+                            $f(\mathbf{x};\mathbf{w})$ with <b>shared weights</b></p>
+                    </div>
+                    <div class="card accent">
+                        <h3>Outputs</h3>
+                        <p>One real score $o_i=f(\mathbf{x}_i)$ per document — only the <b>order</b> matters</p>
+                    </div>
+                </div>
+                <div class="card big" style="padding:18px 20px">
+                    <p class="muted small" style="letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">
+                        Training: siamese copies, one set of weights</p>
+                    <div
+                        style="display:grid;grid-template-columns:auto 30px auto 30px auto 30px auto 30px auto 30px auto;grid-template-rows:auto 26px auto;align-items:center;justify-items:center">
+                        <div class="node" style="grid-area:1/1">$\mathbf{x}_i$</div>
+                        <div class="arr" style="grid-area:1/2">→</div>
+                        <div class="node soft" style="grid-area:1/3">network $f(\mathbf{x};\mathbf{w})$</div>
+                        <div class="arr" style="grid-area:1/4">→</div>
+                        <div class="node" style="grid-area:1/5">$o_i$</div>
+                        <div class="arr" style="grid-area:1/6">→</div>
+                        <div class="node soft tight" style="grid-area:2/3;border-style:dashed">same weights $\mathbf{w}$
+                        </div>
+                        <div class="node" style="grid-area:3/1">$\mathbf{x}_j$</div>
+                        <div class="arr" style="grid-area:3/2">→</div>
+                        <div class="node soft" style="grid-area:3/3">network $f(\mathbf{x};\mathbf{w})$</div>
+                        <div class="arr" style="grid-area:3/4">→</div>
+                        <div class="node" style="grid-area:3/5">$o_j$</div>
+                        <div class="arr" style="grid-area:3/6">→</div>
+                        <div class="node" style="grid-area:1/7/4/8">$o_{ij}=o_i-o_j$</div>
+                        <div class="arr" style="grid-area:1/8/4/9">→</div>
+                        <div class="node" style="grid-area:1/9/4/10">$P_{ij}=\sigma(o_{ij})$</div>
+                        <div class="arr" style="grid-area:1/10/4/11">→</div>
+                        <div class="node fill" style="grid-area:1/11/4/12">cross-entropy<br>vs. $\bar P_{ij}$</div>
+                    </div>
+                    <p style="font-size:18px;margin-top:16px"><b>Inference:</b> score each document alone with
+                        $f(\mathbf{x}_i)$ ($n$ forward passes), then sort descending.</p>
+                </div>
+            </section>
+
+            <!-- 7 METHOD 2 -->
+            <section class="slide">
+                <div class="kicker">RankNet methodology · 2 of 4</div>
+                <h2>Score Difference and Sigmoid Probability</h2>
+                <div class="rule"></div>
+                <div style="display:grid;grid-template-columns:1fr 330px;gap:26px">
+                    <div class="col" style="gap:10px">
+                        <p><b>Pairwise score difference</b></p>
+                        <div class="card" style="padding:6px 18px">$$o_{ij}\equiv
+                            o_i-o_j=f(\mathbf{x}_i)-f(\mathbf{x}_j)$$</div>
+                        <p><b>Modeled posterior probability</b> — logistic sigmoid maps $o_{ij}$ into $(0,1)$</p>
+                        <div class="card" style="padding:6px 18px">$$P_{ij}=P(\mathbf{x}_i \triangleright
+                            \mathbf{x}_j)=\frac{e^{o_{ij}}}{1+e^{o_{ij}}}$$</div>
+                        <p><b>Ground-truth target probability</b> $\bar P_{ij}$</p>
+                        <table style="font-size:16px">
+                            <tr>
+                                <th>Relevance of the pair</th>
+                                <th style="width:90px">$\bar P_{ij}$</th>
+                            </tr>
+                            <tr>
+                                <td>$\mathbf{x}_i$ more relevant than $\mathbf{x}_j$</td>
+                                <td>$1$</td>
+                            </tr>
+                            <tr>
+                                <td>$\mathbf{x}_j$ more relevant than $\mathbf{x}_i$</td>
+                                <td>$0$</td>
+                            </tr>
+                            <tr>
+                                <td>Equal relevance (tie)</td>
+                                <td>$0.5$</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="card" style="align-self:start">
+                        <p class="small muted" style="margin-bottom:4px">$P_{ij}$ as a function of $o_{ij}$</p>
+                        <div id="sigPlot"></div>
+                        <p class="small muted" style="margin-top:6px">Large positive gap → near-certain that $i$ beats
+                            $j$.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 8 METHOD 3 -->
+            <section class="slide">
+                <div class="kicker">RankNet methodology · 3 of 4</div>
+                <h2>Cross-Entropy Cost Function</h2>
+                <div class="rule"></div>
+                <div class="card" style="padding:4px 18px;margin-bottom:16px;font-size:19px">$$C_{ij}=-\bar P_{ij}\log
+                    P_{ij}-(1-\bar P_{ij})\log(1-P_{ij})=-\bar P_{ij}\,o_{ij}+\log\!\left(1+e^{o_{ij}}\right)$$</div>
+                <div style="display:grid;grid-template-columns:1fr 440px;gap:24px">
+                    <div class="col">
+                        <div class="card accent">
+                            <div style="display:flex;align-items:center"><span class="num">1</span><b>Shift
+                                    invariance</b></div>
+                            <p style="margin-top:4px">Depends only on $o_i-o_j$; a constant offset on all scores changes
+                                nothing</p>
+                        </div>
+                        <div class="card accent">
+                            <div style="display:flex;align-items:center"><span class="num">2</span><b>Outlier
+                                    robustness</b></div>
+                            <p style="margin-top:4px">Grows <b>linearly</b>, not quadratically like MSE — noisy labels
+                                do not blow up training</p>
+                        </div>
+                        <div class="card accent">
+                            <div style="display:flex;align-items:center"><span class="num">3</span><b>Principled
+                                    ties</b></div>
+                            <p style="margin-top:4px">With $\bar P_{ij}=0.5$ the minimum sits exactly at $o_{ij}=0$</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <p class="small muted" style="margin-bottom:4px">$C_{ij}$ versus $o_{ij}$ for three targets</p>
+                        <div id="costPlot"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9 METHOD 4 -->
+            <section class="slide">
+                <div class="kicker">RankNet methodology · 4 of 4</div>
+                <h2>Parameters and Gradient Descent Update</h2>
+                <div class="rule"></div>
+                <p style="margin-bottom:10px"><b>Parameters:</b> network weights $w_k$ (and biases), learned by
+                    backpropagation.</p>
+                <p><b>Factored pairwise gradient</b> (chain rule)</p>
+                <div class="card" style="padding:4px 18px;margin:8px 0 16px">$$\frac{\partial C_{ij}}{\partial
+                    w_k}=\frac{\partial C_{ij}}{\partial o_{ij}}\left(\frac{\partial o_i}{\partial w_k}-\frac{\partial
+                    o_j}{\partial w_k}\right),\qquad \frac{\partial C_{ij}}{\partial o_{ij}}=P_{ij}-\bar P_{ij}$$</div>
+                <div class="grid2">
+                    <div class="card accent">
+                        <h3>Weight update</h3>
+                        <div style="font-size:19px">$$w_k\leftarrow w_k-\eta\,\frac{\partial C_{ij}}{\partial w_k}$$
+                        </div>
+                        <p class="muted" style="font-size:15px">$\eta$ = learning rate. One forward pass per document,
+                            one shared backward pass.</p>
+                    </div>
+                    <div class="card accent">
+                        <h3>Intuition</h3>
+                        <p>If $P_{ij}<\bar P_{ij}$ ($i$ should win but the net is not sure):</p>
+                                <div style="display:flex;gap:12px;margin-top:8px">
+                                    <span class="node good" style="flex:1">$o_i$ pushed <b>up</b> ↑</span>
+                                    <span class="node bad" style="flex:1">$o_j$ pulled <b>down</b> ↓</span>
+                                </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 10 EXPERIMENT SETUP -->
+            <section class="slide">
+                <div class="kicker">Experiment</div>
+                <h2>Setup: Pipeline and Query–Document Dataset</h2>
+                <div class="rule"></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+                    <div class="node" style="flex:1">Labeled<br>query–doc data</div>
+                    <div class="arr">→</div>
+                    <div class="node soft" style="flex:1.3"><code>TfidfVectorizer</code><br>+ authority + clicks</div>
+                    <div class="arr">→</div>
+                    <div class="node" style="flex:1">$\mathbf{x}_i\in\mathbb{R}^3$</div>
+                    <div class="arr">→</div>
+                    <div class="node" style="flex:1">All valid pairs<br>per query</div>
+                    <div class="arr">→</div>
+                    <div class="node soft" style="flex:1.2">2-layer RankNet<br>$3\to8\to1$ (PyTorch)</div>
+                    <div class="arr">→</div>
+                    <div class="node fill" style="flex:1.2"><code style="color:#fff">BCEWithLogitsLoss</code><br>on
+                        $o_i-o_j$</div>
+                </div>
+                <div style="display:grid;grid-template-columns:330px 1fr;gap:22px">
+                    <div class="col" style="gap:10px">
+                        <div class="card accent">
+                            <h3>Dataset</h3>
+                            <p>5 training queries × 5 documents (relevant, partial, off-topic, keyword-stuffed spam) =
+                                <b>45 ordered pairs</b></p>
+                        </div>
+                        <div class="card accent">
+                            <h3>Held-out test query</h3>
+                            <p>“Apple MacBook M3”</p>
+                        </div>
+                        <div class="card accent">
+                            <h3>Features</h3>
+                            <p>TF-IDF cosine · domain authority · historical click rate</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <p class="small muted" style="margin-bottom:6px">Test query “Apple MacBook M3” — feature vectors
+                            and graded labels</p>
+                        <table style="font-size:15px">
+                            <tr>
+                                <th>Document</th>
+                                <th>TF-IDF</th>
+                                <th>Authority</th>
+                                <th>Clicks</th>
+                                <th>Label</th>
+                            </tr>
+                            <tr>
+                                <td>Official Apple MacBook Pro M3 page</td>
+                                <td>0.34</td>
+                                <td>0.95</td>
+                                <td>0.80</td>
+                                <td>3</td>
+                            </tr>
+                            <tr>
+                                <td>MacBook Air M3 review</td>
+                                <td>0.27</td>
+                                <td>0.80</td>
+                                <td>0.60</td>
+                                <td>2</td>
+                            </tr>
+                            <tr>
+                                <td>Apple M3 chip explainer (iMac, Mac mini)</td>
+                                <td>0.22</td>
+                                <td>0.70</td>
+                                <td>0.30</td>
+                                <td>1</td>
+                            </tr>
+                            <tr>
+                                <td>Apple pie recipe (off-topic)</td>
+                                <td>0.13</td>
+                                <td>0.60</td>
+                                <td>0.20</td>
+                                <td>0</td>
+                            </tr>
+                            <tr style="background:#FEF2F2">
+                                <td class="bad"><b>Keyword-stuffed spam page</b></td>
+                                <td class="bad"><b>0.93</b></td>
+                                <td>0.05</td>
+                                <td>0.05</td>
+                                <td>0</td>
+                            </tr>
+                        </table>
+                        <p class="muted small" style="margin-top:8px">Toy dataset written for this demo; it is not a
+                            benchmark.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 11 CODE -->
+            <section class="slide" style="padding-top:30px">
+                <div class="kicker">Experiment</div>
+                <h2 style="font-size:32px">Python Implementation (scikit-learn + PyTorch)</h2>
+                <div class="rule" style="margin:8px 0 12px"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                    <div class="code">
+                        <pre><code class="language-python">import itertools, numpy as np, torch, torch.nn as nn
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# DATA[query] = [(text, authority, click_rate, label 0-3), ...]
+def featurize(query, docs):
+    """x = [TF-IDF cosine, authority, click rate]"""
+    texts = [d[0] for d in docs]
+    vec = TfidfVectorizer().fit(texts + [query])
+    sim = cosine_similarity(vec.transform([query]),
+                            vec.transform(texts))[0]
+    X = [[s, d[1], d[2]] for s, d in zip(sim, docs)]
+    return np.array(X, np.float32), np.array([d[3] for d in docs])
+
+class RankNet(nn.Module):          # one net, shared by both docs
+    def __init__(self, d=3, h=8):
+        super().__init__()
+        self.f = nn.Sequential(nn.Linear(d, h), nn.ReLU(),
+                               nn.Linear(h, 1))
+    def forward(self, x):
+        return self.f(x).squeeze(-1)       # o = f(x)
+
+def make_pairs(X, y):              # (more relevant, less relevant)
+    return [(X[i], X[j])
+            for i, j in itertools.permutations(range(len(y)), 2)
+            if y[i] > y[j]]</code></pre>
+                    </div>
+                    <div class="code">
+                        <pre><code class="language-python">def train(seed=0, epochs=300, lr=0.01):
+    torch.manual_seed(seed)
+    P = [p for q, docs in DATA.items()
+           for p in make_pairs(*featurize(q, docs))]
+    xi = torch.tensor(np.stack([p[0] for p in P]))
+    xj = torch.tensor(np.stack([p[1] for p in P]))
+    net, loss_fn = RankNet(), nn.BCEWithLogitsLoss()
+    opt = torch.optim.Adam(net.parameters(), lr=lr)
+    for _ in range(epochs):
+        opt.zero_grad()
+        o_ij = net(xi) - net(xj)                   # o_i - o_j
+        loss = loss_fn(o_ij, torch.ones_like(o_ij))  # P_bar = 1
+        loss.backward(); opt.step()                # gradient step
+    return net
+
+def pair_acc(score, y):
+    ok = [score[i] > score[j] for i, j in
+          itertools.permutations(range(len(y)), 2) if y[i] > y[j]]
+    return float(np.mean(ok))
+
+def ndcg_at_k(score, y, k=3):
+    g = lambda r: ((2.0**r - 1) /
+        np.log2(np.arange(2, len(r) + 2)))[:k].sum()
+    return g(y[np.argsort(-score)]) / g(np.sort(y)[::-1])
+
+# --- rank the held-out test query ---
+q, docs = next(iter(TEST.items()))
+X, y = featurize(q, docs)
+with torch.no_grad():
+    s = train()(torch.tensor(X)).numpy()
+print(np.argsort(-s), pair_acc(s, y), ndcg_at_k(s, y))</code></pre>
+                    </div>
+                </div>
+                <p class="muted" style="font-size:13px;margin-top:8px">Dataset dictionaries <code>DATA</code> (5
+                    training queries) and <code>TEST</code> (1 query) follow the structure on slide 10.</p>
+            </section>
+
+            <!-- 12 RESULTS -->
+            <section class="slide">
+                <div class="kicker">Experiment</div>
+                <h2>Results and Interpretation</h2>
+                <div class="rule"></div>
+                <div style="display:grid;grid-template-columns:1fr 380px;gap:22px">
+                    <div class="col" style="gap:12px">
+                        <table>
+                            <tr>
+                                <th>Model (test query)</th>
+                                <th>Pairwise acc.</th>
+                                <th>NDCG@3</th>
+                                <th>Ranked #1</th>
+                            </tr>
+                            <tr>
+                                <td>TF-IDF baseline</td>
+                                <td>67% (6/9)</td>
+                                <td>0.63</td>
+                                <td class="bad">Spam page</td>
+                            </tr>
+                            <tr>
+                                <td>RankNet, untrained*</td>
+                                <td>52%</td>
+                                <td>0.53</td>
+                                <td class="muted">Varies by init</td>
+                            </tr>
+                            <tr style="background:#EFF6FF">
+                                <td><b>RankNet, trained</b></td>
+                                <td><b class="blue">100% (9/9)</b></td>
+                                <td><b class="blue">1.00</b></td>
+                                <td class="good"><b>Official Apple page</b></td>
+                            </tr>
+                        </table>
+                        <p class="muted small">*Mean over 20 random initializations. Training: 45 pairs, 300 Adam steps,
+                            final loss 0.015.</p>
+                        <div class="card accent" style="margin-top:4px">
+                            <h3>What this shows</h3>
+                            <ul>
+                                <li>Lexical match alone puts the <b>keyword-stuffed spam</b> first</li>
+                                <li>RankNet learns the feature trade-off: <b>authority and clicks</b> outweigh raw text
+                                    overlap</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="grid2" style="gap:10px;align-content:start">
+                        <div>
+                            <p class="small" style="margin-bottom:6px"><b>TF-IDF order</b></p>
+                            <div class="rank spam"><span class="n">1</span>Spam page<span class="r">rel 0</span></div>
+                            <div class="rank"><span class="n">2</span>Apple official<span class="r">rel 3</span></div>
+                            <div class="rank"><span class="n">3</span>Air review<span class="r">rel 2</span></div>
+                            <div class="rank"><span class="n">4</span>M3 explainer<span class="r">rel 1</span></div>
+                            <div class="rank"><span class="n">5</span>Apple pie<span class="r">rel 0</span></div>
+                        </div>
+                        <div>
+                            <p class="small" style="margin-bottom:6px"><b>RankNet order</b></p>
+                            <div class="rank"><span class="n">1</span>Apple official<span class="r">rel 3</span></div>
+                            <div class="rank"><span class="n">2</span>Air review<span class="r">rel 2</span></div>
+                            <div class="rank"><span class="n">3</span>M3 explainer<span class="r">rel 1</span></div>
+                            <div class="rank"><span class="n">4</span>Apple pie<span class="r">rel 0</span></div>
+                            <div class="rank spam"><span class="n">5</span>Spam page<span class="r">rel 0</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 13 LIMITATIONS -->
+            <section class="slide">
+                <div class="kicker">Discussion</div>
+                <h2>Limitations and Method Comparison</h2>
+                <div class="rule"></div>
+                <div style="display:grid;grid-template-columns:400px 1fr;gap:22px">
+                    <div class="col" style="gap:12px">
+                        <p><b>When RankNet struggles</b></p>
+                        <div class="card accent">
+                            <div style="display:flex;align-items:center"><span class="num">1</span><b>Rank-position
+                                    blindness</b></div>
+                            <p style="margin-top:4px">Swapping #1↔#2 costs the same as #500↔#501, ignoring top-heavy
+                                attention (NDCG)</p>
+                        </div>
+                        <div class="card accent">
+                            <div style="display:flex;align-items:center"><span class="num">2</span><b>Training
+                                    complexity</b></div>
+                            <p style="margin-top:4px">Pairs grow as $O(n^2)$ per query; slow without factored gradient
+                                accumulation</p>
+                        </div>
+                        <div class="card accent">
+                            <div style="display:flex;align-items:center"><span class="num">3</span><b>Data and bias</b>
+                            </div>
+                            <p style="margin-top:4px">Needs many labels; click logs carry position bias</p>
+                        </div>
+                    </div>
+                    <div>
+                        <p style="margin-bottom:10px"><b>Comparison</b></p>
+                        <table style="font-size:15px">
+                            <tr>
+                                <th></th>
+                                <th>BM25</th>
+                                <th>RankNet</th>
+                                <th>LambdaRank / LambdaMART</th>
+                            </tr>
+                            <tr>
+                                <td class="lab">Training</td>
+                                <td>None</td>
+                                <td>Labeled pairs</td>
+                                <td>Labeled lists, graded labels</td>
+                            </tr>
+                            <tr>
+                                <td class="lab">Signals</td>
+                                <td>Lexical only</td>
+                                <td>Any features</td>
+                                <td>Any features</td>
+                            </tr>
+                            <tr>
+                                <td class="lab">Objective</td>
+                                <td>Fixed formula</td>
+                                <td>Pairwise cross-entropy</td>
+                                <td>RankNet gradient scaled by $|\Delta\mathrm{NDCG}|$</td>
+                            </tr>
+                            <tr>
+                                <td class="lab">Top-of-list aware</td>
+                                <td>No</td>
+                                <td>No</td>
+                                <td class="good"><b>Yes</b></td>
+                            </tr>
+                            <tr>
+                                <td class="lab">Model</td>
+                                <td>Closed form</td>
+                                <td>Neural network</td>
+                                <td>Neural net / boosted trees</td>
+                            </tr>
+                            <tr>
+                                <td class="lab">Speed</td>
+                                <td class="good">Very fast</td>
+                                <td>Fast inference</td>
+                                <td>Fast inference</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 14 CONCLUSION -->
+            <section class="slide">
+                <div class="kicker">Conclusion</div>
+                <h2>Conclusion and Future Work</h2>
+                <div class="rule"></div>
+                <div class="grid2" style="margin-bottom:18px">
+                    <div class="card accent">
+                        <h3>Main takeaways</h3>
+                        <ul>
+                            <li>Pairwise ordering removes the need for <b>arbitrary score thresholds</b></li>
+                            <li>Sigmoid probabilities + cross-entropy give <b>smooth, outlier-resistant</b> gradients
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card accent">
+                        <h3>Where ranking models are used</h3>
+                        <ul>
+                            <li>Web search engines such as Microsoft Bing</li>
+                            <li>E-commerce product search</li>
+                            <li>Recommendation feeds</li>
+                        </ul>
+                    </div>
+                </div>
+                <p style="margin-bottom:10px"><b>Evolution of the idea</b></p>
+                <div style="display:flex;align-items:stretch;gap:10px">
+                    <div class="node" style="flex:1"><b class="blue">2005</b><br>RankNet<br><span
+                            class="muted small">pairwise, neural net</span></div>
+                    <div class="arr" style="align-self:center">→</div>
+                    <div class="node" style="flex:1"><b class="blue">LambdaRank</b><br>gradients scaled by
+                        $|\Delta\mathrm{NDCG}|$</div>
+                    <div class="arr" style="align-self:center">→</div>
+                    <div class="node" style="flex:1"><b class="blue">LambdaMART</b><br>boosted trees (LightGBM, XGBoost)
+                    </div>
+                    <div class="arr" style="align-self:center">→</div>
+                    <div class="node fill" style="flex:1.2"><b>Today</b><br>Neural / LLM cross-encoder
+                        re-rankers<br><span class="small">pairwise or listwise losses</span></div>
+                </div>
+            </section>
+
+            <!-- 15 REFERENCES -->
+            <section class="slide">
+                <div class="kicker">References</div>
+                <h2>References</h2>
+                <div class="rule"></div>
+                <ol style="list-style:none;counter-reset:r;display:flex;flex-direction:column;gap:14px">
+                    <li style="padding-left:40px;counter-increment:r;font-size:18px">Burges, C., Shaked, T., Renshaw,
+                        E., Lazier, A., Deeds, M., Hamilton, N., &amp; Hullender, G. (2005). <i>Learning to rank using
+                            gradient descent</i>. Proceedings of the 22nd International Conference on Machine Learning
+                        (ICML), 89–96.</li>
+                    <li style="padding-left:40px;counter-increment:r;font-size:18px">Burges, C. J. (2010). <i>From
+                            RankNet to LambdaRank to LambdaMART: An Overview</i>. Microsoft Research Technical Report
+                        MSR-TR-2010-82.</li>
+                    <li style="padding-left:40px;counter-increment:r;font-size:18px">Liu, T.-Y. (2009). <i>Learning to
+                            Rank for Information Retrieval</i>. Foundations and Trends in Information Retrieval, 3(3),
+                        225–331.</li>
+                    <li style="padding-left:40px;counter-increment:r;font-size:18px">Robertson, S., &amp; Zaragoza, H.
+                        (2009). <i>The Probabilistic Relevance Framework: BM25 and Beyond</i>. Foundations and Trends in
+                        Information Retrieval, 3(4), 333–389.</li>
+                </ol>
+                <style>
+                    section ol li::before {
+                        content: counter(r);
+                        left: 0;
+                        top: .1em;
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 50%;
+                        background: #1D4ED8;
+                        color: #fff;
+                        font-size: 14px;
+                        font-weight: 700;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center
+                    }
+                </style>
+                <p class="muted small" style="margin-top:22px">Original paper:
+                    icml.cc/Conferences/2005/proceedings/papers/012_LearningToRank_BurgesEtAl.pdf</p>
+            </section>
+
+        </div>
+    </div>
+
+    <div id="bar">
+        <button id="prev" title="Previous (←)">‹</button>
+        <span id="count">1 / 15</span>
+        <button id="next" title="Next (→)">›</button>
+        <div id="track">
+            <div id="fill"></div>
+        </div>
+        <span>← → navigate · F fullscreen</span>
+    </div>
+
+    <script>
+        const stage = document.getElementById('stage');
+        const slides = [...document.querySelectorAll('.slide')];
+        const N = slides.length;
+        let cur = Math.min(Math.max((parseInt(location.hash.slice(1)) || 1) - 1, 0), N - 1);
+
+        slides.forEach((s, i) => s.insertAdjacentHTML('beforeend',
+            `<div class="foot"><span>Learning to Rank in IR · RankNet</span><span>${i + 1} / ${N}</span></div>`));
+
+        function go(n) {
+            cur = Math.min(Math.max(n, 0), N - 1);
+            slides.forEach((s, i) => s.classList.toggle('active', i === cur));
+            document.getElementById('count').textContent = `${cur + 1} / ${N}`;
+            document.getElementById('fill').style.width = `${((cur + 1) / N) * 100}%`;
+            history.replaceState(null, '', '#' + (cur + 1));
+        }
+        function fit() {
+            const vp = document.getElementById('viewport');
+            const k = Math.min(vp.clientWidth / 1280, vp.clientHeight / 720) * 0.98;
+            stage.style.transform = `translate(-50%,-50%) scale(${k})`;
+        }
+        document.addEventListener('keydown', e => {
+            if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+            else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+            else if (e.key === 'Home') go(0);
+            else if (e.key === 'End') go(N - 1);
+            else if (e.key.toLowerCase() === 'f') {
+                document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+            }
+        });
+        document.getElementById('prev').onclick = () => go(cur - 1);
+        document.getElementById('next').onclick = () => go(cur + 1);
+        window.addEventListener('resize', fit);
+
+        // ---- small SVG line-plot helper (sigmoid and cost curves) ----
+        function plot(o) {
+            const W = o.W, H = o.H, L = 44, R = 12, T = 10, B = 34;
+            const sx = x => L + (x - o.x0) / (o.x1 - o.x0) * (W - L - R);
+            const sy = y => H - B - (y - o.y0) / (o.y1 - o.y0) * (H - T - B);
+            let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;font-family:inherit">`;
+            o.xt.forEach(t => s += `<line x1="${sx(t)}" x2="${sx(t)}" y1="${T}" y2="${H - B}" stroke="#E2E8F0"/><text x="${sx(t)}" y="${H - B + 16}" font-size="12" fill="#64748B" text-anchor="middle">${t}</text>`);
+            o.yt.forEach(t => s += `<line x1="${L}" x2="${W - R}" y1="${sy(t)}" y2="${sy(t)}" stroke="#E2E8F0"/><text x="${L - 6}" y="${sy(t) + 4}" font-size="12" fill="#64748B" text-anchor="end">${t}</text>`);
+            s += `<rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="none" stroke="#CBD5E1"/>`;
+            o.curves.forEach(c => {
+                let d = '';
+                for (let i = 0; i <= 120; i++) {
+                    const x = o.x0 + (o.x1 - o.x0) * i / 120;
+                    d += (i ? 'L' : 'M') + sx(x).toFixed(1) + ' ' + sy(c.f(x)).toFixed(1);
+                }
+                s += `<path d="${d}" fill="none" stroke="${c.color}" stroke-width="2.5" ${c.dash ? 'stroke-dasharray="6 4"' : ''}/>`;
+            });
+            s += `<text x="${(L + W - R) / 2}" y="${H - 4}" font-size="13" fill="#1E293B" text-anchor="middle">${o.xl}</text>`;
+            if (o.curves[0].label) o.curves.forEach((c, i) => {
+                const y = T + 16 + i * 18, x = L + 12;
+                s += `<line x1="${x}" x2="${x + 22}" y1="${y - 4}" y2="${y - 4}" stroke="${c.color}" stroke-width="2.5" ${c.dash ? 'stroke-dasharray="6 4"' : ''}/><text x="${x + 28}" y="${y}" font-size="12" fill="#1E293B">${c.label}</text>`;
+            });
+            return s + '</svg>';
+        }
+        const sub = (a, b) => `${a}<tspan dy="3" font-size="10">${b}</tspan>`;
+        document.getElementById('sigPlot').innerHTML = plot({
+            W: 300, H: 200, x0: -6, x1: 6, y0: 0, y1: 1, xt: [-6, -3, 0, 3, 6], yt: [0, 0.5, 1],
+            xl: `o − o (score difference)`.replace('o − o', `${sub('o', 'i')}<tspan dy="-3"> − </tspan>${sub('o', 'j')}`),
+            curves: [{ f: x => 1 / (1 + Math.exp(-x)), color: '#1D4ED8' }]
+        });
+        document.getElementById('costPlot').innerHTML = plot({
+            W: 400, H: 270, x0: -5, x1: 5, y0: 0, y1: 6, xt: [-4, -2, 0, 2, 4], yt: [0, 2, 4, 6],
+            xl: `${sub('o', 'ij')}<tspan dy="-3"> = </tspan>${sub('o', 'i')}<tspan dy="-3"> − </tspan>${sub('o', 'j')}`,
+            curves: [
+                { f: x => Math.log(1 + Math.exp(-x)), color: '#1D4ED8', label: 'target 1  (i ▷ j)' },
+                { f: x => -0.5 * x + Math.log(1 + Math.exp(x)), color: '#64748B', label: 'target 0.5  (tie)' },
+                { f: x => Math.log(1 + Math.exp(x)), color: '#0F172A', dash: true, label: 'target 0  (j ▷ i)' }
+            ]
+        });
+
+        window.addEventListener('load', () => {
+            renderMathInElement(document.body, {
+                delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
+                throwOnError: false
+            });
+            if (window.hljs) hljs.highlightAll();
+            fit(); go(cur);
+        });
+        fit(); go(cur);
+    </script>
+</body>
+
+</html>
